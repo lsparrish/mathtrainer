@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mod 5 Drill</title>
+<style>
+*{box-sizing:border-box;margin:5px;padding:5px}
+:root{--pb:#0f0f0f;--cb:#1a1a1a;--eb:#7f1d1d;--ag:#00d4aa;--ab:#377;--tp:#fff;--sb:#064e3b;--st:#6ee7b7;--et:#fca5a5;--bs:#404040;--br:12px;--brs:8px}
+body{font-family:Roboto;background:var(--pb);color:var(--tp);min-height:100vh;line-height:1.6;overflow-x:hidden;display:flex;justify-content:center;align-items:center;padding:20px}
+.container{max-width:768px}
+.problem-section,.problem,.result{text-align:center}
+.problem{font-size:clamp(2rem,6vw,3rem);font-weight:800;margin:1rem 0;padding:1.5rem;background:var(--sb);border-radius:var(--br);border:2px solid var(--ag);color:var(--ag);box-shadow:0 0 30px rgba(0,212,170,.3);text-shadow:0 0 20px rgba(0,212,170,.3);transition:all .4s ease}
+.fade-out{opacity:0}
+.fade-in{opacity:1}
+.hidden{visibility:hidden;height:0;margin:0;overflow:hidden;opacity:0}
+.result{font-size:1.1rem;font-weight:600;margin:1rem 0;padding:.75rem;border-radius:var(--brs);min-height:3rem;display:flex;align-items:center;justify-content:center;transition:all 1.3s ease}
+.result.correct{background:var(--sb);color:var(--st)}
+.result.wrong{background:var(--eb);color:var(--et)}
+@keyframes resultAnimation{0%{transform:scale(.8);opacity:0}50%{transform:scale(1.1);opacity:1}100%{transform:scale(1);opacity:1}}
+.result-animation{animation:resultAnimation .5s ease-out}
+.tables-container{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.hint-table{border-collapse:collapse}
+.hint-table td{padding:.2rem .4rem;border:1px solid var(--bs);text-align:center}
+.highlight{background:var(--ag)!important;color:var(--pb)!important}
+@media (max-width:768px){
+.problem{font-size:clamp(1.5rem,8vw,2.5rem);padding:1rem}
+.tables-container{flex-direction:column}
+.mobile-keys{display:flex}
+.mobile-key{flex:1;font-size:clamp(2rem,10vw,3rem);padding:.5rem;text-align:center;background:#faa;color:#000;cursor:pointer}
+.mobile-key:active{background:var(--bs)}
+}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="problem" id="problem"></div>
+<div class="result" id="result"></div>
+<div class="mobile-keys" id="mobile-keys"></div>
+<div class="score" id="score">Score: 0</div>
+<div class="streak" id="streak">Streak: 0</div>
+<div class="hint-container" id="hints"></div>
+<div class="instructions" id="instructions">
+Modulus 5 drill for improving your recall of multiplication facts.<br>
+There are only 5 answers. However, 5 through 9 are equivalent to 0 through 4, so you can practice base 10.
+Press T toggle distracting details (hints, score, instructions).<br>
+Press H to switch between hint modes.<br>
+Press I to hide instructions.<br>
+Press . to toggle sound.<br>
+Press , to toggle four-key mode (no 0 answers).<br>
+These have clickable elements associated for mobile users.<br>
+Use ASDFG, ZXCVB, or number keys.<br>
+On mobile, there should be a row of clickable numbers. Clicking on the problem itself will hide details, disable sound, and enable four-key mode. You can also click this text to make it go away.</div>
+</div>
+<script>
+let a,b,ans,score=0,minVal=5,width=3,mult=1,streak=0,prevA,prevB,hintMode=0,audioCtx,soundOn=1,volume=0.1,fourKeyMode=0,$=id=>document.getElementById(id);
+const sound=(f,d=0.3,t='sine')=>{
+    if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    if(!soundOn)return;
+    const ctx=audioCtx.currentTime;
+    f.forEach((freq,i)=>{
+        const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+        o.connect(g);g.connect(audioCtx.destination);
+        o.frequency.value=freq;o.type=t;
+        g.gain.setValueAtTime(volume,ctx);
+        g.gain.exponentialRampToValueAtTime(0.01,ctx+d);
+        o.start(ctx+i*0.05);o.stop(ctx+d);
+        o.onended = () => {
+            o.disconnect();
+            g.disconnect();
+        };
+    });
+};
+const highlight=()=>{
+    if($('hints').classList.contains('hidden'))return;
+    document.querySelectorAll('.highlight').forEach(el=>el.classList.remove('highlight'));
+    $('hints').classList.toggle('hidden', hintMode>=3);
+    if(hintMode<2){
+        const cell=document.querySelectorAll('.hint-table td')[(a%5)*6+(b%5)];
+        cell&&cell.classList.add('highlight');
+    }
+    if(hintMode<1){
+        [ans%5,ans%5+5].forEach(i=>{
+            const cell=document.querySelectorAll('.hint-table')[1]?.querySelectorAll('td')[(i-1)%5];
+            cell&&cell.classList.add('highlight');
+        });
+    }
+};
+const newProblem=()=>{
+    prevA=a;prevB=b;
+    do{
+        a=Math.floor(Math.random()*(width+1))+minVal;
+        b=mult;
+    }while((a===prevA&&b===prevB) || (fourKeyMode==1 && a * b % 5==0));
+    ans=(a*b)%5;
+    $('problem').innerHTML=`
+        <div class="problem-container">
+            <div class="mod5-part">${a} × ${b}</div>
+        </div>
+    `;
+    
+    highlight();
+};
+const makeTable=(cap,data,cols)=>{
+    let html=`<table class="hint-table"><caption>${cap}:</caption>`;
+    for(let i=0;i<data.length;i+=cols){
+        html+='<tr>';
+        for(let j=0;j<cols&&i+j<data.length;j++)
+            html+=`<td>${data[i+j]}</td>`;
+        html+='</tr>';
+    }
+    return html+'</table>';
+};
+document.onkeydown=e=>{
+    const toggleActions={
+        'T':()=>{
+            const elements=['instructions','streak','score','hints'];
+            const allHidden=elements.every(id=>$(id)?.classList.contains('hidden'));
+            elements.forEach(id=>$(id)?.classList.toggle('hidden', !allHidden));
+            highlight();
+            fourKeyMode=1-fourKeyMode;
+            createMobileKeys();
+        },
+        'H':()=>{
+            hintMode=(hintMode+1)%4;
+            highlight();
+        },
+        'I':()=>$('instructions').classList.toggle('hidden'),
+        '.':()=>soundOn=1-soundOn,
+        ',':()=>fourKeyMode=1-fourKeyMode,
+        '<':()=>{
+            volume=Math.max(0.01,volume-0.05);
+            sound([220],0.1); // Play test sound
+        },
+        '>':()=>{
+            volume=Math.min(1.0,volume+0.05);
+            sound([440],0.1); // Play test sound
+        }
+    };
+    if(toggleActions[e.key.toUpperCase()]){
+        toggleActions[e.key.toUpperCase()]();
+        return;
+    }
+    const userAns='GASDFZXCVB0123456789'.indexOf(e.key.toUpperCase());
+    if(userAns!==-1){
+        if (userAns % 5 === ans) {
+            sound([261.63, 329.63, 392.00]);
+            score++;
+            streak++;
+            $('score').textContent = `Score: ${score}`;
+            $('streak').textContent = `Streak: ${streak}`;
+            const ansFinal = (a * b);
+            $('result').className = 'result correct';
+            $('result').innerHTML = `
+                ${a} x ${b} = <div color=#fff><span style="color: blue;">${ans}</span>| ${ansFinal%10} | ${ansFinal}</div>
+            `;
+            if (streak % 5 === 0) {
+                if (minVal < 9 && width < 5) { minVal++; width++; }
+                if (mult < 20) { mult++; }
+                else {mult = 1; width++; minVal = Math.max(1, minVal - 1); }
+                if (mult%5==0 && fourKeyMode==1) {mult++; }
+            }
+            newProblem();
+        }else{
+            sound([261.63, 293.66, 329.63]);
+            streak=0;
+            score=Math.max(0,score-1);
+            $('result').className = 'result wrong';
+            $('streak').textContent=`Streak: ${streak}`;
+            $('score').textContent=`Score: ${score}`;
+        }
+    }
+};
+const isMobileDevice = () => 
+    window.innerWidth <= 768 && (
+        'ontouchstart' in window || 
+        navigator.maxTouchPoints > 0 || 
+        navigator.msMaxTouchPoints > 0
+    );
+
+const createMobileKeys = () => {
+    if (!isMobileDevice()) {
+        $('mobile-keys').style.display = 'none'; 
+        return;
+    }
+    let mobileKeys = [];
+    if (fourKeyMode===1) {mobileKeys = [1,2,3,4]; newProblem()} else {mobileKeys = [0,1,2,3,4,0]}
+    $('mobile-keys').style.display = 'flex';
+    $('mobile-keys').innerHTML = `
+        ${mobileKeys.map(i => `<div class="mobile-key" id="mobile-key-${i}" onclick="document.onkeydown({key: '${i}'})">${i}</div>`).join('')}
+    `;
+};
+$('problem').addEventListener('click', () => {['T', ' ', '.'].forEach(key => document.dispatchEvent(new KeyboardEvent('keydown', {key})));});
+$('instructions').addEventListener('click', () => {document.onkeydown({key: 'I'});});
+$('hints').addEventListener('click', () => {document.onkeydown({key: 'H'});});
+$('hints').innerHTML = `
+<div class="tables-container">
+    ${makeTable('%5 patterns','000000012340024130031420043210000000',6)}
+    ${makeTable('Equivalent Keys','1234567890ASDFGZXCVB',5)}
+</div>
+`;
+newProblem();
+window.addEventListener('resize', createMobileKeys);
+createMobileKeys();
+</script>
+</body>
+</html>
+

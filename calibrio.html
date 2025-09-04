@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calibrio</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #fff; color: #000; }
+        @media (prefers-color-scheme: dark) { body { background: #000; color: #fff; } }
+        #problem { font-size: 3em; padding: 20px;  display: inline-block; min-width: 100px; }
+        .fraction { display: inline-block; vertical-align: middle; text-align: center; position: relative; }
+        .fraction > div:first-child { border-bottom: 1px solid; }
+        .fraction > div { padding: 0 5px; }
+        #avg, #timer { font-size: 1em; margin-left: 10px; }
+        #info { margin: 20px; font-size: 0.8em; }
+        #buttons button { font-size: 2em; margin: 5px; width: 50px; }
+        #score { font-size: 1.5em; }
+        @media (max-width: 600px) { #buttons { display: block !important; } }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div id="problem"></div>
+    <span id="avg">1.00s</span>
+    <span id="timer">0.00s</span>
+    <div id="info">Usage: Answers are mod 5 (0-4). Mod 10 keys (0-9) also map to mod 5, so any range of 5 numbers in a row will work (e.g. 1-5 or 2-6). You can limit this to 4 keys by pressing Z to exclude zeroes for smoother gameplay.<br>
+Timer resets on wrong answer. Correct answers need to wait long enough (at least halfway to green), the average answer time. Press T or click on problem area to toggle extras. Press M to switch to multiplication mode.<br>
+This is a trainer for your calibration skill. It works by highlighting gaps in automaticity for modulus 5 math facts. If you answer slowly, it just means you have to wait a bit longer next time the same problem comes up.<br>
+Wrong answers don't influence your average time, but reset the timer. As you get better skilled, you will respond faster. Range of numbers slowly increases, but valid answers are limited to 4 or 5 possible depending if zero is excluded. Answers are converted to mod 5 for comparison.</div>
+    <div id="buttons">
+        <button>0</button>
+        <button>1</button>
+        <button>2</button>
+        <button>3</button>
+        <button>4</button>
+    </div>
+    <div id="score">Score: 0</div>
+    <script>
+        const ops = ['+', '-', '*', '/'];
+        const mod = 5;
+        let records = {};
+        let points = 0;
+        let avoid0 = true;
+        let current_max = 5;
+        let last_ans = -1;
+        let start_time = Date.now();
+        let paused = false;
+        let pause_start = 0;
+        let interval_id = setInterval(update_timer, 100);
+        let current_key, current_ans, current_avg;
+        let opModes = ['', '+', '-', '*', '/'];
+        let currentOpIndex = 0;
+        let selectedOp = opModes[currentOpIndex];
+
+        const problem = document.getElementById('problem');
+        const avg_span = document.getElementById('avg');
+        const timer_span = document.getElementById('timer');
+        const score_span = document.getElementById('score');
+        const info = document.getElementById('info');
+        const buttons_div = document.getElementById('buttons');
+        const extras = [info, avg_span, timer_span, score_span];
+        const isMobile = (window.outerWidth <= 667 | window.outerHeight <= 667);
+        if (!isMobile) { buttons_div.classList.add('hidden') } else { buttons_div.classList?.remove('hidden'); }
+        buttons_div.querySelectorAll('button').forEach((btn, i) => btn.addEventListener('click', () => answer(i)));
+        problem.addEventListener('click', toggle_extras);
+        document.addEventListener('keydown', handle_key);
+
+        function modInverse(a, m) {
+            a = (a % m + m) % m;
+            for (let i = 1; i < m; i++) {
+                if ((a * i) % m === 1) return i;
+            }
+            return 1;
+        }
+
+        function compute_ans(a, op, b) {
+            let res;
+            if (op === '+') res = a + b;
+            else if (op === '-') res = a - b;
+            else if (op === '*') res = a * b;
+            else {
+                let bm = b % mod;
+                if (bm === 0) return null;
+                let inv = modInverse(bm, mod);
+                res = (a % mod * inv) % mod;
+            }
+            return (res % mod + mod) % mod;
+        }
+
+        function generate_problem() {
+            let min_num = avoid0 ? 1 : 0;
+            current_max = 5 + Math.floor(points / 10);
+            let a, b, op, ans;
+            while (true) {
+                op = selectedOp || (op = ops[Math.floor(Math.random() * ops.length)]);
+                a = Math.floor(Math.random() * (current_max - min_num + 1)) + min_num;
+                b = Math.floor(Math.random() * (current_max - min_num + 1)) + min_num;
+                if (op === '/' && (b % mod === 0 || a % b !== 0)) continue;
+                if (op === '/' && avoid0 && a < b) continue;
+                if (op === '-' && avoid0 && a < b) continue;
+                ans = compute_ans(a, op, b);
+                if (ans === null) continue;
+                if (ans === last_ans || (avoid0 && ans === 0)) continue;
+                break;
+            }
+            last_ans = ans;
+            current_ans = ans;
+            if (op === '/') {
+                problem.innerHTML = `<div class="fraction"><div>${a}</div><div>${b}</div></div>`;
+                current_key = `${a}/${b}`;
+            } else {
+                problem.innerHTML = `${a} ${op} ${b}`;
+                current_key = `${a}${op}${b}`;
+            }
+
+            problem.innerHTML += `<span style="font-size: 0.4em">mod5</span>`;
+            if (!records[current_key]) records[current_key] = { sum: 0, count: 0 };
+            current_avg = records[current_key].count > 0 ? records[current_key].sum / records[current_key].count : 1;
+            avg_span.textContent = current_avg.toFixed(2) + 's';
+            start_time = Date.now();
+//            problem.style.backgroundColor = 'hsl(0, 60%, 50%)';
+        }
+
+        function update_timer() {
+            if (paused) return;
+            let t = (Date.now() - start_time) / 1000;
+            timer_span.textContent = t.toFixed(2) + 's';
+            let hue = Math.min(120 * (t / current_avg), 120);
+            problem.style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
+            problem.style.color = (t/current_avg > 0.45) ? '#f22' : '#338';
+        }
+
+        function reset_timer() {
+            start_time = Date.now();
+        }
+
+        function toggle_extras() {
+            extras.forEach(el => el.classList.toggle('hidden'));
+        }
+
+        function handle_key(e) {
+            let key = e.key;
+            if (key >= '0' && key <= '9') answer(parseInt(key%5));
+            else if (key === ' ') {
+                paused = !paused;
+                if (paused) pause_start = Date.now();
+                else start_time += Date.now() - pause_start;
+            } else if (key.toLowerCase() === 't') toggle_extras();
+            else if (key.toLowerCase() === 'z') {
+                avoid0 = !avoid0;
+                generate_problem();
+            } else if (key.toLowerCase() === 'm') {
+                currentOpIndex = (currentOpIndex + 1) % opModes.length;
+                selectedOp = opModes[currentOpIndex];
+                generate_problem();
+            }
+        }
+
+        function answer(user_ans) {
+            if (paused) return;
+            let t = (Date.now() - start_time) / 1000;
+            if (user_ans !== current_ans) {
+                reset_timer();
+                problem.style.backgroundColor = 'hsl(0, 100%, 50%)';
+                return;
+            }
+            if (t < current_avg / 2) {
+                // Fast correct: continue without points or reset
+            } else {
+                points++;
+                score_span.textContent = `Score: ${points}`;
+                let rec = records[current_key];
+                rec.sum += t;
+                rec.count++;
+                current_avg = rec.sum / rec.count;
+                avg_span.textContent = current_avg.toFixed(2) + 's';
+                generate_problem();
+            }
+        }
+
+        generate_problem();
+    </script>
+</body>
+</html>
