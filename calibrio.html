@@ -90,61 +90,36 @@
 
         function getProgressColors(progress) {
             const isDark = isDarkMode();
-            const isFirstHalf = progress <= 0.5;
-            const localProgress = isFirstHalf ? progress * 2 : (progress - 0.5) * 2;
-
-            const colorSets = {
-                dark: {
-                    firstHalf: { 
-                        red: [139, 255],
-                        green: [0, 140],
-                        blue: [0, 0],
-                        text: '#ffffff'
-                    },
-                    secondHalf: {
-                        red: [255, 0],
-                        green: [140, 240],
-                        blue: [0, 60],
-                        text: '#000000'
-                    }
-                },
-                light: {
-                    firstHalf: {
-                        red: [220, 220],
-                        green: [20, 180],
-                        blue: [20, 20],
-                        text: '#000000'
-                    },
-                    secondHalf: {
-                        red: [220, 40],
-                        green: [180, 220],
-                        blue: [20, 60],
-                        text: '#000000'
-                    }
+            if (isDark) {
+                if (progress <= 0.5) {
+                    const localProgress = progress * 2;
+                    const red = Math.round(127 * (1 - localProgress) + 6 * localProgress);
+                    const green = Math.round(29 * (1 - localProgress) + 78 * localProgress);
+                    const blue = Math.round(29 * (1 - localProgress) + 59 * localProgress);
+                    return {
+                        bg: `rgb(${red}, ${green}, ${blue})`,
+                        text: '#6ee7b7'
+                    };
+                } else {
+                    return {
+                        bg: '#064e3b',
+                        text: '#6ee7b7'
+                    };
                 }
-            };
-
-            const mode = isDark ? 'dark' : 'light';
-            const phase = isFirstHalf ? 'firstHalf' : 'secondHalf';
-            const colors = colorSets[mode][phase];
-
-            const red = Math.round(colors.red[0] + (colors.red[1] - colors.red[0]) * localProgress);
-            const green = Math.round(colors.green[0] + (colors.green[1] - colors.green[0]) * localProgress);
-            const blue = Math.round(colors.blue[0] + (colors.blue[1] - colors.blue[0]) * localProgress);
-
-            return {
-                bg: `rgb(${red}, ${green}, ${blue})`,
-                text: colors.text
-            };
+            } else {
+                const intensity = Math.round(240 - (progress * 60));
+                return {
+                    bg: `rgb(${intensity}, ${intensity}, ${intensity})`,
+                    text: '#000000'
+                };
+            }
         }
-
         function generate_problem() {
             let min_num = avoid0 ? 1 : 0;
             current_max = 5 + Math.floor(points / 10);
             let a, b, op, ans;
             while (true) {
                 op = selectedOp || (op = ops[Math.floor(Math.random() * ops.length)]);
-
                 a = Math.floor(Math.random() * (current_max - min_num + 1)) + min_num;
                 b = Math.floor(Math.random() * (current_max - min_num + 1)) + min_num;
                 if (op === '/' && (b % mod === 0 || a % b !== 0)) continue;
@@ -169,13 +144,10 @@
             current_avg = records[current_key].count > 0 ? records[current_key].sum / records[current_key].count : 1;
             avg_span.textContent = current_avg.toFixed(2) + 's';
             start_time = Date.now();
-            
-            // Initial colors (red)
             const colors = getProgressColors(0);
             problem.style.backgroundColor = colors.bg;
             problem.style.color = colors.text;
         }
-
         function update_timer() {
             if (paused) return;
             let t = (Date.now() - start_time) / 1000;
