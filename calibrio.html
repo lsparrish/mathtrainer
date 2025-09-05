@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calibrio</title>
     <style>
-    body { font-family: sans-serif; text-align: center; background: #fff; color: #000; }
-    @media (prefers-color-scheme: dark) { body { background: #000; color: #fff; } }
-    #problem { font-size: 2em; height: 2em; line-height: 2em; display: inline-block; min-width: 200px; border-radius: 0; transition: all 0.1s ease; text-align: center;  }
+    body { font-family: sans-serif; text-align: center; background-color: #1e1e1e; color: #f0f0f0; transition: background-color 0.3s, color 0.3s; }
+    body.light-mode { background-color: #f0f0f0; color: #1e1e1e; }
+    #problem { font-size: 2em; height: 2.5em; line-height: 2.5em; display: inline-block; width: 250px; border-radius: 0; transition: all 0.1s ease; text-align: center;  }
     .fraction { display: inline-block; vertical-align: middle; line-height: 1em; }
-    .fraction > div { display: block; text-align: center; font-size: 0.5em; line-height: 1em; }
+    .fraction > div { display: block; text-align: center; font-size: 1em; line-height: 1em; }
     .fraction > div:first-child { border-bottom: .15em solid currentColor; }
     .nonfraction > div { font-size: 0.5em; display: inline-block; line-height: 1em; vertical-align: middle; }
     #stats { font-size: 1em; margin-top: 10px; display: flex; gap: 10px; justify-content: center; }
@@ -18,12 +18,12 @@
     #buttons button { font-size: 2em; width: 50px; height: 50px; line-height: 50px; border-radius: 5px; background: #f0f0f0; color: #000; border: 1px solid #ccc; transition: background 0.2s, transform 0.1s; display: flex; align-items: center; justify-content: center; }
     #buttons button:hover { background: #ddd; }
     #buttons button:active { transform: scale(0.95); }
-    @media (prefers-color-scheme: dark) { #buttons button { background: #333; color: #fff; border: 1px solid #555; } 
-    #buttons button:hover { background: #444; } }
+    #buttons button { background: #333; color: #fff; border: 1px solid #555; } 
+    #buttons.light-mode button { background: #fff; color: #333; border: 1px solid #555; }
+    #buttons button:hover { background: #444; }
     #score { font-size: 1.5em; margin-top: 10px; }
     @media (max-width: 600px) { body { padding: 10px; } #problem { font-size: 2.5em; } }
     .hidden { display: none; visibility: hidden; }
-
     </style>
 </head>
 <body>
@@ -164,7 +164,7 @@
             extras.forEach(el => el.classList.toggle('hidden'));
         }
         function isDarkMode() {
-            return window.matchMedia('(prefers-color-scheme: dark)').matches;
+            return !document.body.classList.contains('light-mode');
         }
         function handle_key(e) {
             let key = e.key;
@@ -181,6 +181,11 @@
                 currentOpIndex = (currentOpIndex + 1) % opModes.length;
                 selectedOp = opModes[currentOpIndex];
                 generate_problem();
+            }
+            if (e.key.toLowerCase() === 'l') {
+                document.body.classList.toggle('light-mode');
+                buttons.classList.toggle('light-mode');
+
             }
         }
 
