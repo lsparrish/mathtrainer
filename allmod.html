@@ -167,7 +167,7 @@
             document.getElementById('problemNum').textContent = `Problem: ${currentProblem + 1}/${numProblems}`;
             const prob = generateProblem(m, op);
             currentAnswer = prob.answer;
-            document.getElementById('question').innerHTML = `${prob.question}`+`<span style="font-size: 0.4em"><br>(mod ${m})</span>`;
+            document.getElementById('question').innerHTML = `${prob.question}<span style="font-size: 0.4em"><br>(mod ${m})</span>`;
             document.getElementById('summary').style.display = 'none';
             const btnContainer = document.getElementById('buttons');
             btnContainer.innerHTML = '';
@@ -177,13 +177,38 @@
                 if (i === 0 && isTouch) {
                     let longPress = false;
                     let pressTimer;
+                    // Touch event listeners for mobile
+                    btn.addEventListener('touchstart', (e) => {
+                        e.preventDefault(); // Prevent default touch behaviors (e.g., scrolling)
+                        longPress = false;
+                        pressTimer = setTimeout(() => {
+                            longPress = true;
+                            avoidZero = true;
+                            loadProblem();
+                            document.getElementById('feedback').textContent = 'Avoid Zero Mode Enabled';
+                            document.getElementById('feedback').style.color = 'blue';
+                        }, 500); // Increased to 500ms for long-press
+                    });
+                    btn.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        clearTimeout(pressTimer);
+                        if (!longPress) {
+                            checkAnswer(0);
+                        }
+                    });
+                    btn.addEventListener('touchcancel', () => {
+                        clearTimeout(pressTimer);
+                    });
+                    // Mouse event listeners for desktop (fallback)
                     btn.addEventListener('mousedown', () => {
                         longPress = false;
                         pressTimer = setTimeout(() => {
                             longPress = true;
                             avoidZero = true;
                             loadProblem();
-                        }, 50);
+                            document.getElementById('feedback').textContent = 'Avoid Zero Mode Enabled';
+                            document.getElementById('feedback').style.color = 'blue';
+                        }, 500);
                     });
                     btn.addEventListener('mouseup', () => {
                         clearTimeout(pressTimer);
@@ -205,7 +230,6 @@
             }
             lastQuestion = prob.question;
         }
-
         function checkAnswer(userAns) {
             total++;
             const fb = document.getElementById('feedback');
