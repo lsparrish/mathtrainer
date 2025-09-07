@@ -124,10 +124,16 @@
                 let a = Math.floor(Math.random() * m);
                 let b = Math.floor(Math.random() * m);
                 if (op === 'div') {
-                    b = b || 1; // Avoid 0
+                    avoidZero && (a = a || 1);
+                    b = b || 1; // Avoid 0 for b always
                     while (gcd(b, m) !== 1) {
                         b = Math.floor(Math.random() * m) || 1;
                     }
+                } else if (op === 'mul') {
+                    a = Math.floor(Math.random() * (m));
+                    b = Math.floor(Math.random() * (m));
+                    avoidZero && (a = a || 1);
+                    avoidZero && (b = b || 1);
                 }
                 if (op === 'add') {
                     question = `${a} + ${b}`;
@@ -150,7 +156,6 @@
             } while ((avoidZero && answer === 0) || question === lastQuestion);
             return { question, answer };
         }
-
         function loadProblem() {
             const m = moduli[currentModIndex];
             currentMod = m;
