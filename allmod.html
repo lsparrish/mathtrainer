@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modular Arithmetic Drill</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: white;
+            color: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            background: #f9f9f9;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        #question {
+            font-size: 24px;
+            margin: 20px 0;
+        }
+        #buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        button {
+            padding: 20px;
+            font-size: 24px;
+            background: #eee;
+            color: black;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #feedback {
+            font-size: 20px;
+            margin: 20px 0;
+        }
+        #summary {
+            display: none;
+            font-size: 24px;
+            margin: 20px 0;
+        }
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: black;
+                color: white;
+            }
+            .container {
+                border: 1px solid #555;
+                background: #222;
+            }
+            button {
+                background: #333;
+                color: white;
+                border: 1px solid #555;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Modular Arithmetic Drill</h1>
+        <div id="modulus"></div>
+        <div id="operation"></div>
+        <div id="problemNum"></div>
+        <div id="question"></div>
+        <div id="buttons"></div>
+        <div id="feedback"></div>
+        <div id="summary"></div>
+    </div>
+    <script>
+        const moduli = [2, 3, 4, 5, 6, 7, 8, 9, 10];
+        const operations = ['add', 'sub', 'mul', 'div'];
+        let currentModIndex = 0;
+        let currentOpIndex = 0;
+        let currentProblem = 0;
+        let score = 0;
+        let total = 0;
+        let currentAnswer = null;
+        let currentMod = null;
+        let avoidZero = false;
+
+        function gcd(a, b) {
+            return b === 0 ? a : gcd(b, a % b);
+        }
+
+        function modInverse(a, m) {
+            for (let x = 1; x < m; x++) {
+                if ((a * x) % m === 1) {
+                    return x;
+                }
+            }
+            return 1; // Fallback, shouldn't reach here
+        }
+
+        function generateProblem(m, op) {
+            let question, answer;
+            do {
+                let a = Math.floor(Math.random() * m);
+                let b = Math.floor(Math.random() * m);
+                if (op === 'div') {
+                    b = b || 1; // Avoid 0
+                    while (gcd(b, m) !== 1) {
+                        b = Math.floor(Math.random() * m) || 1;
+                    }
+                }
+                if (op === 'add') {
+                    question = `${a} + ${b} mod ${m}`;
+                    answer = (a + b) % m;
+                } else if (op === 'sub') {
+                    question = `${a} - ${b} mod ${m}`;
+                    answer = (a - b + m) % m;
+                } else if (op === 'mul') {
+                    question = `${a} \u00D7 ${b} mod ${m}`;
+                    answer = (a * b) % m;
+                } else { // div
+                    question = `${a} \u00F7 ${b} mod ${m}`;
+                    const inv = modInverse(b, m);
+                    answer = (a * inv) % m;
+                }
+            } while (avoidZero && answer === 0);
+            return { question, answer };
+        }
+
+        function loadProblem() {
+            const m = moduli[currentModIndex];
+            currentMod = m;
+            const op = operations[currentOpIndex];
+            const opName = {
+                add: 'Addition',
+                sub: 'Subtraction',
+                mul: 'Multiplication',
+                div: 'Division'
+            }[op];
+            document.getElementById('modulus').textContent = `Modulus: ${m}`;
+            document.getElementById('operation').textContent = `Operation: ${opName}`;
+            document.getElementById('problemNum').textContent = `Problem: ${currentProblem + 1}/10`;
+            const prob = generateProblem(m, op);
+            currentAnswer = prob.answer;
+            document.getElementById('question').textContent = `What is ${prob.question}?`;
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('summary').style.display = 'none';
+
+            const btnContainer = document.getElementById('buttons');
+            btnContainer.innerHTML = '';
+            for (let i = 0; i < m; i++) {
+                const btn = document.createElement('button');
+                btn.textContent = i;
+                if (i === 0) {
+                    let longPress = false;
+                    let pressTimer;
+                    btn.addEventListener('mousedown', () => {
+                        longPress = false;
+                        pressTimer = setTimeout(() => {
+                            longPress = true;
+                            avoidZero = true;
+                            loadProblem();
+                        }, 500);
+                    });
+                    btn.addEventListener('mouseup', () => {
+                        clearTimeout(pressTimer);
+                        if (!longPress) {
+                            checkAnswer(0);
+                        }
+                    });
+                    btn.addEventListener('mouseleave', () => {
+                        clearTimeout(pressTimer);
+                    });
+                } else {
+                    btn.onclick = () => checkAnswer(i);
+                }
+                btnContainer.appendChild(btn);
+            }
+            if (avoidZero) {
+                const zeroBtn = btnContainer.querySelector('button:first-child');
+                zeroBtn.style.visibility = 'hidden';
+            }
+        }
+
+        function checkAnswer(userAns) {
+            total++;
+            const fb = document.getElementById('feedback');
+            const btns = document.querySelectorAll('#buttons button');
+            btns.forEach(b => b.disabled = true);
+
+            if (userAns === currentAnswer) {
+                fb.textContent = 'Correct!';
+                fb.style.color = 'green';
+                score++;
+                setTimeout(nextProblem, 500);
+            } else {
+                fb.textContent = `Wrong. The correct answer is ${currentAnswer}.`;
+                fb.style.color = 'red';
+                setTimeout(() => {
+                    fb.textContent = '';
+                    btns.forEach(b => b.disabled = false);
+                }, 500);
+            }
+        }
+
+        function nextProblem() {
+            currentProblem++;
+            if (currentProblem >= 10) {
+                currentProblem = 0;
+                currentOpIndex++;
+                if (currentOpIndex >= operations.length) {
+                    currentOpIndex = 0;
+                    currentModIndex++;
+                    if (currentModIndex >= moduli.length) {
+                        showSummary();
+                        return;
+                    }
+                }
+            }
+            loadProblem();
+        }
+
+        function showSummary() {
+            document.getElementById('modulus').style.display = 'none';
+            document.getElementById('operation').style.display = 'none';
+            document.getElementById('problemNum').style.display = 'none';
+            document.getElementById('question').style.display = 'none';
+            document.getElementById('buttons').style.display = 'none';
+            document.getElementById('feedback').style.display = 'none';
+            const summary = document.getElementById('summary');
+            summary.textContent = `Drill Complete! Your score: ${score} out of ${total} (${Math.round((score / total) * 100)}%)`;
+            summary.style.display = 'block';
+        }
+
+        function handleKeyPress(event) {
+            const key = event.key;
+            if (/^\d$/.test(key)) {
+                const num = parseInt(key, 10);
+                if (num < currentMod && !(avoidZero && num === 0)) {
+                    const btns = document.querySelectorAll('#buttons button');
+                    if (btns[num] && !btns[num].disabled) {
+                        checkAnswer(num);
+                    }
+                }
+            } else if (key.toLowerCase() === 'z') {
+                avoidZero = !avoidZero;
+                loadProblem();
+            }
+        }
+
+        document.addEventListener('keydown', handleKeyPress);
+        loadProblem();
+    </script>
+</body>
+</html>
