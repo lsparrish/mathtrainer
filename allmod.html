@@ -100,6 +100,7 @@
         let currentAnswer = null;
         let currentMod = null;
         let avoidZero = false;
+        const isTouch = 'ontouchstart' in window;
 
         function gcd(a, b) {
             return b === 0 ? a : gcd(b, a % b);
@@ -167,7 +168,7 @@
             for (let i = 0; i < m; i++) {
                 const btn = document.createElement('button');
                 btn.textContent = i;
-                if (i === 0) {
+                if (i === 0 && isTouch) {
                     let longPress = false;
                     let pressTimer;
                     btn.addEventListener('mousedown', () => {
@@ -194,7 +195,7 @@
             }
             if (avoidZero) {
                 const zeroBtn = btnContainer.querySelector('button:first-child');
-                zeroBtn.style.visibility = 'hidden';
+                zeroBtn.style.display = 'none';
             }
         }
 
@@ -208,7 +209,7 @@
                 fb.textContent = 'Correct!';
                 fb.style.color = 'green';
                 score++;
-                setTimeout(nextProblem, 500);
+                setTimeout(nextProblem, 100);
             } else {
                 fb.textContent = `Wrong. The correct answer is ${currentAnswer}.`;
                 fb.style.color = 'red';
@@ -252,10 +253,11 @@
             const key = event.key;
             if (/^\d$/.test(key)) {
                 const num = parseInt(key, 10);
-                if (num < currentMod && !(avoidZero && num === 0)) {
+                const userAns = num % currentMod;
+                if (!(avoidZero && userAns === 0)) {
                     const btns = document.querySelectorAll('#buttons button');
-                    if (btns[num] && !btns[num].disabled) {
-                        checkAnswer(num);
+                    if (btns[userAns] && !btns[userAns].disabled) {
+                        checkAnswer(userAns);
                     }
                 }
             } else if (key.toLowerCase() === 'z') {
