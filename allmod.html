@@ -100,6 +100,8 @@
         let currentAnswer = null;
         let currentMod = null;
         let avoidZero = false;
+        let lastQuestion = null;
+        let numProblems = null;
         const isTouch = 'ontouchstart' in window;
 
         function gcd(a, b) {
@@ -117,6 +119,7 @@
 
         function generateProblem(m, op) {
             let question, answer;
+            let attempts = 0;
             do {
                 let a = Math.floor(Math.random() * m);
                 let b = Math.floor(Math.random() * m);
@@ -127,26 +130,31 @@
                     }
                 }
                 if (op === 'add') {
-                    question = `${a} + ${b} mod ${m}`;
+                    question = `${a} + ${b}`;
                     answer = (a + b) % m;
                 } else if (op === 'sub') {
-                    question = `${a} - ${b} mod ${m}`;
+                    question = `${a} - ${b}`;
                     answer = (a - b + m) % m;
                 } else if (op === 'mul') {
-                    question = `${a} \u00D7 ${b} mod ${m}`;
+                    question = `${a} \u00D7 ${b}`;
                     answer = (a * b) % m;
                 } else { // div
-                    question = `${a} \u00F7 ${b} mod ${m}`;
+                    question = `${a} \u00F7 ${b}`;
                     const inv = modInverse(b, m);
                     answer = (a * inv) % m;
                 }
-            } while (avoidZero && answer === 0);
+                attempts++;
+                if (attempts > 100) { // Prevent infinite loop
+                    break;
+                }
+            } while ((avoidZero && answer === 0) || question === lastQuestion);
             return { question, answer };
         }
 
         function loadProblem() {
             const m = moduli[currentModIndex];
             currentMod = m;
+            numProblems = m;
             const op = operations[currentOpIndex];
             const opName = {
                 add: 'Addition',
@@ -156,13 +164,11 @@
             }[op];
             document.getElementById('modulus').textContent = `Modulus: ${m}`;
             document.getElementById('operation').textContent = `Operation: ${opName}`;
-            document.getElementById('problemNum').textContent = `Problem: ${currentProblem + 1}/10`;
+            document.getElementById('problemNum').textContent = `Problem: ${currentProblem + 1}/${numProblems}`;
             const prob = generateProblem(m, op);
             currentAnswer = prob.answer;
-            document.getElementById('question').textContent = `What is ${prob.question}?`;
-            document.getElementById('feedback').textContent = '';
+            document.getElementById('question').innerHTML = `${prob.question}`+`<span style="font-size: 0.4em"><br>(mod ${m})</span>`;
             document.getElementById('summary').style.display = 'none';
-
             const btnContainer = document.getElementById('buttons');
             btnContainer.innerHTML = '';
             for (let i = 0; i < m; i++) {
@@ -177,7 +183,7 @@
                             longPress = true;
                             avoidZero = true;
                             loadProblem();
-                        }, 500);
+                        }, 50);
                     });
                     btn.addEventListener('mouseup', () => {
                         clearTimeout(pressTimer);
@@ -197,32 +203,27 @@
                 const zeroBtn = btnContainer.querySelector('button:first-child');
                 zeroBtn.style.display = 'none';
             }
+            lastQuestion = prob.question;
         }
 
         function checkAnswer(userAns) {
             total++;
             const fb = document.getElementById('feedback');
             const btns = document.querySelectorAll('#buttons button');
-            btns.forEach(b => b.disabled = true);
-
+            //btns.forEach(b => b.disabled = true);
             if (userAns === currentAnswer) {
-                fb.textContent = 'Correct!';
+                fb.textContent = `${currentAnswer}`;
                 fb.style.color = 'green';
                 score++;
-                setTimeout(nextProblem, 100);
+                nextProblem();
             } else {
-                fb.textContent = `Wrong. The correct answer is ${currentAnswer}.`;
                 fb.style.color = 'red';
-                setTimeout(() => {
-                    fb.textContent = '';
-                    btns.forEach(b => b.disabled = false);
-                }, 500);
             }
         }
 
         function nextProblem() {
             currentProblem++;
-            if (currentProblem >= 10) {
+            if (currentProblem >= numProblems) {
                 currentProblem = 0;
                 currentOpIndex++;
                 if (currentOpIndex >= operations.length) {
